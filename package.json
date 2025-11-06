@@ -1,0 +1,19 @@
+{
+  "name": "podcast-player",
+  "version": "1.0.0",
+  "description": "Podcast Player",
+  "main": "script.js",
+  "scripts": {
+      "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/v-georgakopoulos/podcast-player.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/v-georgakopoulos/podcast-player/issues"
+  },
+  "homepage": "https://github.com/v-georgakopoulos/podcast-player#readme"
+}
