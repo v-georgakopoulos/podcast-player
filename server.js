@@ -39,7 +39,7 @@ app.get('/api/search', async (req,res) => {
 
     try {
         const response = await fetch(`${apiEndpoint}/search/byterm?q=${encodeURIComponent(query)}`, {
-            method: 'get',
+            method: 'GET',
             headers: headers
         });
         if(response.ok && response.headers.get('content-type').includes('application/json')) {
@@ -68,7 +68,7 @@ app.get('/api/episodes', async (req,res) => {
 
     try {
         const response = await fetch(`${apiEndpoint}/episodes/byitunesid?id=${encodeURIComponent(feedId)}&max=${max}`, {
-            method: 'get',
+            method: 'GET',
             headers: headers
         });
         if(response.ok && response.headers.get('content-type').includes('application/json')) {

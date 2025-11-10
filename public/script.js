@@ -7,6 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const resetButton = document.getElementById('resetButton');
     const loader = document.getElementById('loader');
     const responseContainer = document.getElementById('response');
+    const queueContainer = document.querySelector('.queue');
 
     // Reset search history
     function resetHistory() {
@@ -267,7 +268,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-
     // Create Episode card ------------ //
     function createEpisodeCard(episode) {
         const card = document.createElement('div');
@@ -300,7 +300,8 @@ document.addEventListener('DOMContentLoaded', () => {
         queueBtnIcon.title = 'Add to Queue';
 
         queueBtnIcon.addEventListener('click', () => {
-            console.log('Episode queued', episode)
+            console.log('Episode queued', episode);
+            addToQueue(episode);
         });
 
         const description = document.createElement('p');
@@ -329,13 +330,93 @@ document.addEventListener('DOMContentLoaded', () => {
         return card;
     }
 
+    // Set Queue Array
+    let queueItems = [];
+
+    // Add item to queue
+    function addToQueue(episode) {
+        const card = document.createElement('div');
+        card.className = 'queue-item';
+
+        const img = document.createElement('img');
+        img.src = episode.image || episode.feedImage || './podcast.icon.png';
+        img.alt = episode.title;
+
+        const content = document.createElement('div');
+        content.className = 'queue-content';
+
+        const title = document.createElement('h3');
+        title.innerText = episode.title;
+
+        const iconContainer = document.createElement('div');
+        iconContainer.classList = 'icon-container';
+
+        const playBtnIcon = document.createElement('i');
+        playBtnIcon.className = 'fas fa-play-circle mb-10';
+        playBtnIcon.title = 'Play Podcast';
+
+        playBtnIcon.addEventListener('click', () => {
+            console.log('Episode Played', episode);
+            loadPodcast(episode);
+        });
+
+        const removeBtnIcon = document.createElement('i');
+        removeBtnIcon.className = 'fas fa-trash-alt';
+        removeBtnIcon.title = 'Remove from Queue';
+
+        removeBtnIcon.addEventListener('click', () => {
+            console.log('Episode removed', episode);
+            deleteFromQueue(episode);   
+        });
+
+        iconContainer.appendChild(playBtnIcon);
+        iconContainer.appendChild(removeBtnIcon);
+
+        content.appendChild(title);
+        content.appendChild(iconContainer);
+
+        card.appendChild(img);
+        card.appendChild(content);
+
+        queueContainer.appendChild(card);
+
+        saveQueue(episode);
+    }
+
+    // Save items to queue
+    function saveQueue(episode) {
+        queueItems.push(episode);
+        localStorage.setItem('queue', JSON.stringify(queueItems));
+
+        const queueElements = document.querySelectorAll('queue-item');
+        queueElements.forEach(item => {
+            const title = item.querySelector('h3').innerText;
+            if(title === episode.title) item.remove();
+        })
+    }
+
+    // Load saved queue
+    function loadQueue() {
+        const savedQueue = JSON.parse(localStorage.getItem('queue'));
+        if(savedQueue) {
+            savedQueue.forEach(episode =>addToQueue(episode));
+        }
+    }
+
+    // Delete item from queue
+    function deleteFromQueue(episode) {
+        queueItems = queueItems.filter(item => item.title !== episode.title);
+        localStorage.setItem('queue', JSON.stringify(queueItems));
+    }
+
+
     // Navigation ------------ //
     const searchLink = document.getElementById('searchLink');
     const listenLink = document.getElementById('listenLink');
     const searchContainer = document.querySelector('.search-container');
     const mainContainer = document.querySelector('.main-container');
     const playerContainer = document.querySelector('.player-container');
-    const queueContainer = document.querySelector('.queue');
+    
 
     searchLink.addEventListener('click', navigateToSearch);
     listenLink.addEventListener('click', navigateToPlayer);
@@ -396,14 +477,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Update Podcast container
     function loadPodcast(episode) {
+        currentTimeEl.style.display = 'none';
+        durationEl.style.display = 'none';
         title.textContent = episode.title;
         datePublished.textContent = `${episode.datePublished ? formatDate(episode.datePublished) : 'Not Available'}`;
         player.src = episode.enclosureUrl;
         image.src = episode.image || episode.feedImage || './podcast-icon.png'
 
+        // Reset player
+        player.currentTime = 0;
+        progress.classList.add('loading');
+        currentTimeEl.textContent = '0:00';
+
         player.addEventListener('loadedmetadata', () => {
             const duration = player.duration;
+            currentTimeEl.style.display = 'block';
+            durationEl.style.display = 'block';
             formatTime(duration, durationEl);
+            progress.classList.remove('loading');
             playPodcast();
         })
     }
@@ -411,9 +502,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Fortmat time
     function formatTime(time, elName) {
         // Calculate hours, minutes, seconds
-        const hours = Math.floor(time / 3000);
+        const hours = Math.floor(time / 3600);
         const minutes = Math.floor((time % 3600) / 60);
-        const seconds = Math.floor(time % 60);
+        let seconds = Math.floor(time % 60);
 
         // Format seconds
         if (seconds < 10) seconds = `0${seconds}`;
@@ -461,6 +552,59 @@ document.addEventListener('DOMContentLoaded', () => {
     prevBtn.addEventListener('click', () => skipTime(-15));
     nextBtn.addEventListener('click', () => skipTime(+15));
 
+    // Check if the screen width is less than 1025px
+    function isMobileDevice() {
+        return window.innerWidth < 1025;
+    }
+
+    // Save the player state to local storage every 5 seconds
+    setInterval(() => {
+        if (isPlaying) {
+            const playerState = {
+                title: title.textContent,
+                datePublished: datePublished.textContent,
+                currentTime: player.currentTime,
+                duration: player.duration,
+                image: image.src,
+                src: player.src
+            };
+            localStorage.setItem('playerState', JSON.stringify(playerState));
+        }
+    }, 5000)
+
+    // Load saved player state from local storage
+    function loadPlayerState() {
+        const savedState = JSON.parse(localStorage.getItem('playerState'));
+        if (savedState) {
+            title.textContent = savedState.title;
+            datePublished.textContent = savedState.datePublished;
+            image.src = savedState.image;
+            player.src = savedState.player;
+            player.currentTime = savedState.currentTime;
+            formatTime(savedState.currentTime, currentTimeEl);
+            player.duration = savedState.duration;
+            formatTime(savedState.duration, durationEl);
+            progress.style.width = `${(savedState.currentTime / savedState.duration) * 100}%`;
+            if(isMobileDevice()) navigateToPlayer();
+        }
+    }
+
+    // On Startup
+    loadPlayerState();
+    loadQueue();
+
+    // Service Worker ------------- //
+    if('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+        navigator.serviceWorker.register('service-worker.js')
+        .then(registration => {
+            console.log('Srvice worker registered with score', registration.scope);
+        })
+        .catch(error => {
+            console.error('Service Worker registration failed:', error);
+        });
+        });
+    }
 });
 
 
